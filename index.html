@@ -321,6 +321,9 @@ function startGPS() {
 
 function capturePhoto() {
 
+   
+function capturePhoto() {
+
     if (!stream || video.readyState < 2) {
         alert("Please start the camera first.");
         return;
@@ -344,6 +347,7 @@ function capturePhoto() {
 
     const ctx = canvas.getContext("2d");
 
+    // Draw the complete photograph first
     ctx.drawImage(video, 0, 0, width, height);
 
     const now = new Date();
@@ -352,11 +356,8 @@ function capturePhoto() {
         "https://www.google.com/maps?q=" +
         latitude + "," + longitude;
 
-
-    // GENERATE QR CODE
-
+    // Generate QR code
     const qrContainer = document.getElementById("qrcode");
-
     qrContainer.innerHTML = "";
 
     const qrSize = Math.round(
@@ -377,39 +378,36 @@ function capturePhoto() {
         return;
     }
 
-
-    // INFORMATION PANEL
-
-    const boxHeight = Math.max(280, height * 0.28);
+    // Compact bottom information strip
     const padding = width * 0.035;
     const fontSize = Math.max(16, width * 0.023);
 
-    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    const labelSize = Math.max(12, fontSize * 0.65);
 
-    ctx.fillRect(
-        0,
-        height - boxHeight,
-        width,
-        boxHeight
+    const stripHeight = Math.ceil(
+        Math.max(
+            qrSize + fontSize * 1.8 + padding * 2,
+            fontSize * 8.2 + padding * 2
+        )
     );
 
+    const stripTop = height - stripHeight;
 
-    // HEADING
+    // Draw strip only at the bottom
+    ctx.fillStyle = "rgba(0,0,0,0.85)";
+    ctx.fillRect(0, stripTop, width, stripHeight);
 
+    // Heading
     ctx.fillStyle = "#8ff0ad";
-
-    ctx.font =
-        "bold " + (fontSize * 1.3) + "px Arial";
+    ctx.font = "bold " + (fontSize * 1.15) + "px Arial";
 
     ctx.fillText(
         "GPS MAP CAMERA",
         padding,
-        height - boxHeight + fontSize * 1.7
+        stripTop + padding + fontSize
     );
 
-
-    // GPS DETAILS
-
+    // GPS information
     ctx.fillStyle = "white";
     ctx.font = fontSize + "px Arial";
 
@@ -422,28 +420,23 @@ function capturePhoto() {
     ];
 
     lines.forEach((line, index) => {
-
         ctx.fillText(
             line,
             padding,
-            height - boxHeight + fontSize * (3.2 + index * 1.4)
+            stripTop + padding + fontSize * (2.4 + index * 1.2)
         );
-
     });
 
-
-    // ADD QR CODE TO PHOTOGRAPH
-
+    // QR code fixed at bottom-right
     const qrX = width - qrSize - padding;
-    const qrY = height - boxHeight + (boxHeight - qrSize) / 2;
+    const qrY = stripTop + (stripHeight - qrSize - labelSize * 1.5) / 2;
 
     ctx.fillStyle = "white";
-
     ctx.fillRect(
-        qrX - 7,
-        qrY - 7,
-        qrSize + 14,
-        qrSize + 14
+        qrX - 6,
+        qrY - 6,
+        qrSize + 12,
+        qrSize + 12
     );
 
     ctx.drawImage(
@@ -454,31 +447,26 @@ function capturePhoto() {
         qrSize
     );
 
-
-    // QR CODE LABEL
-
+    // QR label
     ctx.fillStyle = "#8ff0ad";
-
-    ctx.font =
-        "bold " + Math.max(12, fontSize * 0.65) + "px Arial";
-
+    ctx.font = "bold " + labelSize + "px Arial";
     ctx.textAlign = "center";
 
     ctx.fillText(
         "SCAN FOR MAP",
         qrX + qrSize / 2,
-        qrY + qrSize + fontSize
+        qrY + qrSize + labelSize * 1.3
     );
 
     ctx.textAlign = "left";
 
-
-    // SAVE IMAGE DATA
-
+    // Store photograph
     photo = canvas.toDataURL("image/jpeg", 0.95);
 
     document.getElementById("photoStatus").textContent =
-        "Photograph captured with GPS details and QR code. Ready to save.";
+        "Photograph captured with compact GPS strip and QR code. Ready to save.";
+}
+ 
 
 }
 
