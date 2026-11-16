@@ -260,6 +260,13 @@ function startGPS() {
 
             document.getElementById("gpsStatus").textContent =
                 "GPS: Location acquired successfully";
+            const mapsURL =
+    "https://www.google.com/maps?q=" + latitude + "," + longitude;
+
+const mapsLink = document.getElementById("mapsLink");
+
+mapsLink.href = mapsURL;
+mapsLink.style.display = "inline-block";
 
         },
 
