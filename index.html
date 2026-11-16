@@ -1,1 +1,359 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#10251d">
+<title>GPS Map Camera</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #101914;
+    color: white;
+}
+
+header {
+    padding: 18px;
+    text-align: center;
+    background: #193c2b;
+}
+
+header h2 { margin: 0; }
+header p { color: #c5ddce; font-size: 13px; }
+
+.container {
+    max-width: 520px;
+    margin: auto;
+    padding: 15px;
+}
+
+.camera {
+    position: relative;
+    background: #000;
+    border-radius: 14px;
+    overflow: hidden;
+    aspect-ratio: 3 / 4;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.overlay {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    background: rgba(0,0,0,0.72);
+    padding: 12px;
+    border-radius: 9px;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.overlay strong {
+    font-size: 15px;
+    color: #8ff0ad;
+}
+
+.status {
+    background: #1c3025;
+    border-radius: 10px;
+    padding: 13px;
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    margin-top: 10px;
+    border: none;
+    border-radius: 9px;
+    background: #238b52;
+    color: white;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button.secondary { background: #344c3d; }
+button.capture { background: #e3a52c; color: #172018; }
+
+button:disabled { opacity: .5; }
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #aabbb0;
+    font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h2>📍 GPS MAP CAMERA</h2>
+    <p>Location-stamped photography</p>
+</header>
+
+<div class="container">
+
+    <div class="camera">
+        <video id="video" autoplay playsinline></video>
+
+        <div class="overlay">
+            <strong>GPS MAP CAMERA</strong><br>
+            <span id="date">Date: Waiting...</span><br>
+            <span id="time">Time: Waiting...</span><br>
+            <span id="latitude">Latitude: Not available</span><br>
+            <span id="longitude">Longitude: Not available</span><br>
+            <span id="accuracy">GPS Accuracy: Not available</span>
+        </div>
+    </div>
+
+    <div class="status">
+        <strong>LOCATION STATUS</strong><br>
+        <span id="gpsStatus">GPS not started</span><br>
+        <span id="cameraStatus">Camera not started</span>
+    </div>
+
+    <button onclick="startCamera()">📷 Start Camera</button>
+
+    <button class="secondary" onclick="startGPS()">
+        📍 Get GPS Location
+    </button>
+
+    <button class="secondary" onclick="switchCamera()">
+        🔄 Switch Camera
+    </button>
+
+    <button class="capture" onclick="capturePhoto()">
+        📸 CAPTURE PHOTOGRAPH
+    </button>
+
+    <button class="secondary" onclick="downloadPhoto()">
+        ⬇ SAVE PHOTOGRAPH
+    </button>
+
+    <canvas id="canvas" style="display:none"></canvas>
+
+    <div class="status">
+        <strong>CAPTURE STATUS</strong><br>
+        <span id="photoStatus">No photograph captured yet.</span>
+    </div>
+
+</div>
+
+<footer>
+    GPS Map Camera | Version 1.0
+</footer>
+
+<script>
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+
+let stream = null;
+let photo = null;
+let latitude = null;
+let longitude = null;
+let accuracy = null;
+let facingMode = "environment";
+
+function updateDateTime() {
+    const now = new Date();
+
+    document.getElementById("date").textContent =
+        "Date: " + now.toLocaleDateString();
+
+    document.getElementById("time").textContent =
+        "Time: " + now.toLocaleTimeString();
+}
+
+updateDateTime();
+setInterval(updateDateTime, 1000);
+
+
+async function startCamera() {
+
+    try {
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: facingMode
+            },
+            audio: false
+        });
+
+        video.srcObject = stream;
+
+        document.getElementById("cameraStatus").textContent =
+            "Camera: Active";
+
+    } catch (error) {
+
+        alert("Unable to access camera. Please allow camera permission.");
+
+        document.getElementById("cameraStatus").textContent =
+            "Camera error: " + error.message;
+    }
+}
+
+
+async function switchCamera() {
+
+    facingMode =
+        facingMode === "environment" ? "user" : "environment";
+
+    await startCamera();
+}
+
+
+function startGPS() {
+
+    if (!navigator.geolocation) {
+        alert("GPS location is not supported by this browser.");
+        return;
+    }
+
+    document.getElementById("gpsStatus").textContent =
+        "Searching for GPS location...";
+
+    navigator.geolocation.getCurrentPosition(
+
+        function(position) {
+
+            latitude = position.coords.latitude;
+            longitude = position.coords.longitude;
+            accuracy = position.coords.accuracy;
+
+            document.getElementById("latitude").textContent =
+                "Latitude: " + latitude.toFixed(6);
+
+            document.getElementById("longitude").textContent =
+                "Longitude: " + longitude.toFixed(6);
+
+            document.getElementById("accuracy").textContent =
+                "GPS Accuracy: ±" + accuracy.toFixed(1) + " metres";
+
+            document.getElementById("gpsStatus").textContent =
+                "GPS: Location acquired successfully";
+
+        },
+
+        function(error) {
+
+            document.getElementById("gpsStatus").textContent =
+                "GPS error: " + error.message;
+
+            alert("Location unavailable. Please enable location permission.");
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
+        }
+    );
+}
+
+
+function capturePhoto() {
+
+    if (!stream || video.readyState < 2) {
+        alert("Please start the camera first.");
+        return;
+    }
+
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(video, 0, 0, width, height);
+
+    const boxHeight = Math.max(190, height * 0.22);
+    const padding = width * 0.035;
+    const fontSize = Math.max(16, width * 0.027);
+
+    ctx.fillStyle = "rgba(0,0,0,0.75)";
+    ctx.fillRect(0, height - boxHeight, width, boxHeight);
+
+    ctx.fillStyle = "#8ff0ad";
+    ctx.font = "bold " + (fontSize * 1.35) + "px Arial";
+
+    ctx.fillText("GPS MAP CAMERA", padding,
+        height - boxHeight + fontSize * 1.8);
+
+    ctx.fillStyle = "white";
+    ctx.font = fontSize + "px Arial";
+
+    const now = new Date();
+
+    const lines = [
+        "Date: " + now.toLocaleDateString(),
+        "Time: " + now.toLocaleTimeString(),
+        "Latitude: " + (latitude !== null ? latitude.toFixed(6) : "Unavailable"),
+        "Longitude: " + (longitude !== null ? longitude.toFixed(6) : "Unavailable"),
+        "Accuracy: " + (accuracy !== null ? "±" + accuracy.toFixed(1) + " m" : "Unavailable")
+    ];
+
+    lines.forEach((line, index) => {
+        ctx.fillText(
+            line,
+            padding,
+            height - boxHeight + fontSize * (3.5 + index * 1.45)
+        );
+    });
+
+    photo = canvas.toDataURL("image/jpeg", 0.95);
+
+    document.getElementById("photoStatus").textContent =
+        "Photograph captured successfully. Ready to save.";
+
+}
+
+
+function downloadPhoto() {
+
+    if (!photo) {
+        alert("Please capture a photograph first.");
+        return;
+    }
+
+    const link = document.createElement("a");
+
+    link.href = photo;
+    link.download = "GPS_Photo_" +
+        new Date().getTime() + ".jpg";
+
+    link.click();
+
+    document.getElementById("photoStatus").textContent =
+        "Photograph downloaded successfully.";
+
+}
+
+</script>
+
+</body>
+</html>
+
+
