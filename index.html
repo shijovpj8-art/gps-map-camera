@@ -1,328 +1,6 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#10251d">
-<title>GPS Map Camera</title>
-<link rel="manifest" href="./manifest.webmanifest">
 
-<style>
-* { box-sizing: border-box; }
-
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #101914;
-    color: white;
-}
-
-header {
-    padding: 18px;
-    text-align: center;
-    background: #193c2b;
-}
-
-header h2 { margin: 0; }
-header p { color: #c5ddce; font-size: 13px; }
-
-.container {
-    max-width: 520px;
-    margin: auto;
-    padding: 15px;
-}
-
-.camera {
-    position: relative;
-    background: #000;
-    border-radius: 14px;
-    overflow: hidden;
-    aspect-ratio: 3 / 4;
-}
-
-video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.overlay {
-    position: absolute;
-    bottom: 12px;
-    left: 12px;
-    right: 12px;
-    background: rgba(0,0,0,0.72);
-    padding: 12px;
-    border-radius: 9px;
-    font-size: 12px;
-    line-height: 1.7;
-}
-
-.overlay strong {
-    font-size: 15px;
-    color: #8ff0ad;
-}
-
-.status {
-    background: #1c3025;
-    border-radius: 10px;
-    padding: 13px;
-    margin-top: 14px;
-    font-size: 13px;
-    line-height: 1.8;
-}
-
-#mapsLink {
-    display: none;
-    color: #8ff0ad;
-    font-weight: bold;
-}
-
-button {
-    width: 100%;
-    padding: 14px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 9px;
-    background: #238b52;
-    color: white;
-    font-size: 15px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-button.secondary { background: #344c3d; }
-button.capture { background: #e3a52c; color: #172018; }
-
-footer {
-    text-align: center;
-    padding: 20px;
-    color: #aabbb0;
-    font-size: 12px;
-}
-</style>
-</head>
-
-<body>
-
-<header>
-    <h2>📍 GPS MAP CAMERA</h2>
-    <p>Location-stamped photography</p>
-</header>
-
-<div class="container">
-
-    <div class="camera">
-        <video id="video" autoplay playsinline></video>
-
-        <div class="overlay">
-            <strong>GPS MAP CAMERA</strong><br>
-            <span id="date">Date: Waiting...</span><br>
-            <span id="time">Time: Waiting...</span><br>
-            <span id="latitude">Latitude: Not available</span><br>
-            <span id="longitude">Longitude: Not available</span><br>
-            <span id="accuracy">GPS Accuracy: Not available</span>
-        </div>
-    </div>
-
-    <div class="status">
-        <strong>LOCATION STATUS</strong><br>
-        <span id="gpsStatus">GPS not started</span><br>
-        <span id="cameraStatus">Camera not started</span><br>
-
-        <a id="mapsLink" href="#" target="_blank" rel="noopener">
-            📍 OPEN LOCATION IN GOOGLE MAPS
-        </a>
-    </div>
-
-    <button onclick="startCamera()">📷 Start Camera</button>
-
-    <button class="secondary" onclick="startGPS()">
-        📍 Get GPS Location
-    </button>
-
-    <button class="secondary" onclick="switchCamera()">
-        🔄 Switch Camera
-    </button>
-
-    <button class="capture" onclick="capturePhoto()">
-        📸 CAPTURE PHOTOGRAPH
-    </button>
-
-    <button class="secondary" onclick="downloadPhoto()">
-        ⬇ SAVE PHOTOGRAPH
-    </button>
-
-    <canvas id="canvas" style="display:none"></canvas>
-
-    <div id="qrcode"
-         style="position:fixed; left:-10000px; top:0;"></div>
-
-    <div class="status">
-        <strong>CAPTURE STATUS</strong><br>
-        <span id="photoStatus">No photograph captured yet.</span>
-    </div>
-
-</div>
-
-<footer>
-    GPS Map Camera | Version 2.0
-</footer>
-
-<!-- QR code library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-<script>
-
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-
-let stream = null;
-let photo = null;
-let latitude = null;
-let longitude = null;
-let accuracy = null;
-let facingMode = "environment";
-
-
-// DATE AND TIME
-
-function updateDateTime() {
-
-    const now = new Date();
-
-    document.getElementById("date").textContent =
-        "Date: " + now.toLocaleDateString();
-
-    document.getElementById("time").textContent =
-        "Time: " + now.toLocaleTimeString();
-}
-
-updateDateTime();
-setInterval(updateDateTime, 1000);
-
-
-// START CAMERA
-
-async function startCamera() {
-
-    try {
-
-        if (!navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia) {
-            throw new Error("Camera access is not supported.");
-        }
-
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-
-        stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: { ideal: facingMode }
-            },
-            audio: false
-        });
-
-        video.srcObject = stream;
-        await video.play();
-
-        document.getElementById("cameraStatus").textContent =
-            "Camera: Active";
-
-    } catch (error) {
-
-        alert("Unable to access camera. Please allow camera permission.");
-
-        document.getElementById("cameraStatus").textContent =
-            "Camera error: " + error.message;
-    }
-}
-
-
-// SWITCH CAMERA
-
-async function switchCamera() {
-
-    facingMode =
-        facingMode === "environment" ? "user" : "environment";
-
-    await startCamera();
-}
-
-
-// GET GPS LOCATION
-
-function startGPS() {
-
-    if (!navigator.geolocation) {
-        alert("GPS location is not supported by this browser.");
-        return;
-    }
-
-    document.getElementById("gpsStatus").textContent =
-        "Searching for GPS location...";
-
-    const mapsLink = document.getElementById("mapsLink");
-    mapsLink.style.display = "none";
-
-    navigator.geolocation.getCurrentPosition(
-
-        function(position) {
-
-            latitude = position.coords.latitude;
-            longitude = position.coords.longitude;
-            accuracy = position.coords.accuracy;
-
-            document.getElementById("latitude").textContent =
-                "Latitude: " + latitude.toFixed(6);
-
-            document.getElementById("longitude").textContent =
-                "Longitude: " + longitude.toFixed(6);
-
-            document.getElementById("accuracy").textContent =
-                "GPS Accuracy: ±" + accuracy.toFixed(1) + " metres";
-
-            document.getElementById("gpsStatus").textContent =
-                "GPS: Location acquired successfully";
-
-            const mapsURL =
-                "https://www.google.com/maps?q=" +
-                latitude + "," + longitude;
-
-            mapsLink.href = mapsURL;
-            mapsLink.style.display = "inline-block";
-
-        },
-
-        function(error) {
-
-            latitude = null;
-            longitude = null;
-            accuracy = null;
-
-            document.getElementById("gpsStatus").textContent =
-                "GPS error: " + error.message;
-
-            alert("Location unavailable. Please enable location permission.");
-        },
-
-        {
-            enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 0
-        }
-    );
-}
-
-
-// CAPTURE PHOTOGRAPH WITH QR CODE
-
-function capturePhoto() {
-
-   
-function capturePhoto() {
+ // CAPTURE PHOTOGRAPH WITH QR CODE
 
 function capturePhoto() {
 
@@ -344,12 +22,17 @@ function capturePhoto() {
     const width = video.videoWidth;
     const height = video.videoHeight;
 
+    if (width === 0 || height === 0) {
+        alert("Camera is not ready. Please try again.");
+        return;
+    }
+
     canvas.width = width;
     canvas.height = height;
 
     const ctx = canvas.getContext("2d");
 
-    // Original photograph
+    // Draw original photograph
     ctx.drawImage(video, 0, 0, width, height);
 
     const now = new Date();
@@ -358,7 +41,7 @@ function capturePhoto() {
         "https://www.google.com/maps?q=" +
         latitude + "," + longitude;
 
-    // Generate compact QR code
+    // Generate QR code
     const qrContainer = document.getElementById("qrcode");
     qrContainer.innerHTML = "";
 
@@ -380,7 +63,7 @@ function capturePhoto() {
         return;
     }
 
-    // Compact bottom strip
+    // Compact information strip
     const padding = width * 0.025;
     const fontSize = Math.max(14, width * 0.017);
     const labelSize = Math.max(10, fontSize * 0.65);
@@ -396,14 +79,12 @@ function capturePhoto() {
 
     const stripTop = height - stripHeight;
 
-    // Dark transparent strip
     ctx.fillStyle = "rgba(0,0,0,0.78)";
     ctx.fillRect(0, stripTop, width, stripHeight);
 
-    // Two compact information lines
+    // GPS coordinates
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold " + fontSize + "px Arial";
-
     ctx.textAlign = "left";
 
     ctx.fillText(
@@ -413,6 +94,7 @@ function capturePhoto() {
         stripTop + padding + fontSize
     );
 
+    // Date and time
     ctx.font = fontSize + "px Arial";
 
     ctx.fillText(
@@ -444,7 +126,7 @@ function capturePhoto() {
         qrSize
     );
 
-    // Small QR label
+    // QR label
     ctx.fillStyle = "#8ff0ad";
     ctx.font = "bold " + labelSize + "px Arial";
     ctx.textAlign = "center";
@@ -457,65 +139,13 @@ function capturePhoto() {
 
     ctx.textAlign = "left";
 
-    // Save photograph
+    // Prepare photograph for saving
     photo = canvas.toDataURL("image/jpeg", 0.95);
 
     document.getElementById("photoStatus").textContent =
-        "Compact GPS photograph captured. Ready to save.";
+        "Photograph captured successfully. Ready to save.";
 }
 
- 
 
 
-// DOWNLOAD PHOTOGRAPH
-
-function downloadPhoto() {
-
-    if (!photo) {
-        alert("Please capture a photograph first.");
-        return;
-    }
-
-    const link = document.createElement("a");
-
-    link.href = photo;
-
-    link.download =
-        "GPS_Photo_" + new Date().getTime() + ".jpg";
-
-    link.click();
-
-    document.getElementById("photoStatus").textContent =
-        "Photograph downloaded successfully.";
-}
-
-</script>
-
-
-<!-- SERVICE WORKER REGISTRATION -->
-
-<script>
-
-if ("serviceWorker" in navigator) {
-
-    window.addEventListener("load", () => {
-
-        navigator.serviceWorker.register("./sw.js")
-
-            .then(() => console.log(
-                "GPS Camera service worker registered"
-            ))
-
-            .catch(error => console.error(
-                "Service Worker Error:", error
-            ));
-
-    });
-
-}
-
-</script>
-
-</body>
-</html>
 
